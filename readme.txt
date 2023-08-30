@@ -1,6 +1,6 @@
-=== Telinfy Sms Rcs WhatsApp Alert ===
+=== Telinfy Messaging ===
 Contributors: 
-Tags: Telinfy, Telinfy messaging, WhatsApp messaging, Sms, Rcs, abandoned cart messages, Telinfy Sms Rcs WhatsApp Alert
+Tags: Telinfy, Telinfy messaging, WhatsApp , Sms, Rcs, abandoned cart messages, Telinfy Sms Rcs WhatsApp Alert
 Requires at least: 5.0.0
 Tested up to: 6.2
 WC tested up to: 7.8
@@ -19,7 +19,7 @@ RCS: https://www.greenadsglobal.com/rcs-messaging/
 
 == Description ==
 
-What is WooCommerce Telinfy Sms Rcs WhatsApp Alert Plugin? The WooCommerce Telinfy Sms Rcs WhatsApp Alert Plugin is a WooCommerce plugin that helps you to integrate messaging services like WhatsApp, SMS, and RCS with Telinfy Messaging services. It will send messages to the customers on placing an order, shipping an order, cancelling an order, refunding an order, changing the status of the order, adding customer notes for the orders and abandoned cart notifications.
+What is WooCommerce Telinfy Messaging Plugin? The WooCommerce Telinfy Messaging Plugin is a WooCommerce plugin that helps you to integrate messaging services like WhatsApp, SMS, and RCS with Telinfy Messaging services. It will send messages to the customers on placing an order, shipping an order, cancelling an order, refunding an order, changing the status of the order, adding customer notes for the orders and abandoned cart notifications.
 
 ### IMPORTANT NOTICE:
 
