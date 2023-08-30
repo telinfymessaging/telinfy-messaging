@@ -1,1 +1,1 @@
-# telinfymessaging
+# telinfy messaging plugin
