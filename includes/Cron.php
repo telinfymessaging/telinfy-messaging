@@ -6,35 +6,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class Cron {
+class telinfy_cron {
 
 	protected static $instance = null;
 
 	public function __construct() {
 		
-		add_filter( 'cron_schedules', array( $this, 'add_cron_schedule' ) );
+		add_filter( 'cron_schedules', array( $this, 'telinfy_add_cron_schedule' ) );
 
 		$whatsapp_abd_enabled = get_option('wc_settings_telinfy_messaging_checkbox_abandoned_cart_whatsapp');
 		$sms_abd_enabled = get_option('wc_settings_telinfy_messaging_checkbox_abandoned_cart_sms');
 
 		if($whatsapp_abd_enabled == "yes" || $sms_abd_enabled =="yes" ){
 
-			if ( ! wp_next_scheduled( 'tm_execute_cron' ) ) {
-				wp_schedule_event( time(), 'tm_abd_cart', 'tm_execute_cron' );
+			if ( ! wp_next_scheduled( 'telinfy_tm_execute_cron' ) ) {
+				wp_schedule_event( time(), 'telinfy_tm_abd_cart', 'telinfy_tm_execute_cron' );
 			}
 
-			add_action( 'tm_execute_cron', array( $this, 'tm_execute_cron' ) );
+			add_action( 'telinfy_tm_execute_cron', array( $this, 'telinfy_tm_execute_cron' ) );
 
-			if ( ! wp_next_scheduled( 'tm_remove_abandoned_cart' ) ) {
-				wp_schedule_event( time(), 'tm_abd_cart_remove', 'tm_remove_abandoned_cart' );
+			if ( ! wp_next_scheduled( 'telinfy_tm_remove_abandoned_cart' ) ) {
+				wp_schedule_event( time(), 'telinfy_tm_abd_cart_remove', 'telinfy_tm_remove_abandoned_cart' );
 			}
 
-			add_action( 'tm_remove_abandoned_cart', array( $this, 'tm_remove_abandoned_cart' ) );
+			add_action( 'telinfy_tm_remove_abandoned_cart', array( $this, 'telinfy_tm_remove_abandoned_cart' ) );
+
+			if ( ! wp_next_scheduled( 'telinfy_tm_send_queue' ) ) {
+				wp_schedule_event( time(), 'telinfy_tm_send_queue_message', 'telinfy_tm_send_queue' );
+			}
+
+			add_action( 'telinfy_tm_send_queue', array( $this, 'telinfy_tm_send_queue' ) );
 		}
 
 	}
 
-	public static function get_instance() {
+	public static function telinfy_get_instance() {
         if ( null == self::$instance ) {
             self::$instance = new self;
         }
@@ -43,41 +49,68 @@ class Cron {
     }
 
 
-	public function add_cron_schedule( $schedules ) {
+	public function telinfy_add_cron_schedule( $schedules ) {
 
 		$whatsapp_abd_enabled = get_option('wc_settings_telinfy_messaging_checkbox_abandoned_cart_whatsapp');
 		$sms_abd_enabled = get_option('wc_settings_telinfy_messaging_checkbox_abandoned_cart_sms');
 
 		if($whatsapp_abd_enabled == "yes" || $sms_abd_enabled =="yes" ){
 
-			$interval = get_option('wc_settings_telinfy_messaging_abd_cart_cron_interval');
-			$interval_seconds =$interval* MINUTE_IN_SECONDS;
+			$interval = (int)get_option('wc_settings_telinfy_messaging_abd_cart_cron_interval');
+			$abd_cart_send_time = get_option('wc_settings_telinfy_messaging_abd_cart_send_time');
+			$hours_array = explode(",",$abd_cart_send_time);
 
-			$time_in_day = get_option('wc_settings_telinfy_messaging_abd_cart_remove_interval');
-			$time_in_seconds = $time_in_day * DAY_IN_SECONDS;
+			$hours_array = array_filter($hours_array, 'is_numeric');
+			$hours_array = array_map('intval', $hours_array);
+			$hours_array = array_unique($hours_array);
+			$hours_array = array_values($hours_array);
 
-			$schedules['tm_abd_cart'] = array(
-				'interval' => $interval_seconds,
-				'display'  => __( 'Tm Abandoned Cart' ),
+      		$abd_cart_send_time_count = count($hours_array);
+
+			if($interval && $abd_cart_send_time_count){
+				$interval_seconds = $interval* MINUTE_IN_SECONDS;
+				$schedules['telinfy_tm_abd_cart'] = array(
+					'interval' => $interval_seconds,
+					'display'  => __( 'Tm Abandoned Cart' ),
+				);
+			}
+
+			$time_in_day = (int)get_option('wc_settings_telinfy_messaging_abd_cart_remove_interval');
+			$abd_cart_remove_time = (int)get_option('wc_settings_telinfy_messaging_abd_cart_remove_time');
+
+			if($time_in_day && $abd_cart_remove_time){
+				$time_in_seconds = $time_in_day * DAY_IN_SECONDS;
+
+
+				$schedules['telinfy_tm_abd_cart_remove'] = array(
+					'interval' => $time_in_seconds,
+					'display'  => __( 'Tm Abandoned Cart Remove' ),
+				);
+			}
+			$message_queue_interval = (int)get_option('wc_settings_telinfy_messaging_message_queue_cron_time');
+			$message_queue_interval_seconds = $message_queue_interval* MINUTE_IN_SECONDS;
+			$schedules['telinfy_tm_send_queue_message'] = array(
+				'interval' => $message_queue_interval_seconds,
+				'display'  => __( 'Tm Send Queue Message' ),
 			);
-			$schedules['tm_abd_cart_remove'] = array(
-				'interval' => $time_in_seconds,
-				'display'  => __( 'Tm Abandoned Cart Remove' ),
-			);
-
 			return $schedules;
 		}
 
 	}
 
-	public function tm_execute_cron() {
+	public function telinfy_tm_execute_cron() {
 		
-		do_action( 'tm_cron_send_message_abd_cart' );
+		do_action( 'telinfy_tm_cron_send_message_abd_cart' );
 	}
 
-	public function tm_remove_abandoned_cart() {
+	public function telinfy_tm_remove_abandoned_cart() {
 
-		do_action( 'tm_cron_abd_cart_remove' );
+		do_action( 'telinfy_tm_cron_abd_cart_remove' );
+		
+	}
+	public function telinfy_tm_send_queue() {
+
+		do_action( 'telinfy_tm_cron_send_message' );
 		
 	}
 }

@@ -7,16 +7,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use TelinfyMessaging\Api\TelinfyConnector;
-use TelinfyMessaging\Api\SmsConnector;
+use TelinfyMessaging\Api\telinfy_whatsapp_connector;
+use TelinfyMessaging\Api\telinfy_sms_connector;
+use TelinfyMessaging\Includes\telinfy_query_db;
 
-class messageController {
+class telinfy_message_controller {
 
 	protected static $instance = null;
 	public $connector;
 	public $sms_connector;
 
-	public static function get_instance() {
+	public static function telinfy_get_instance() {
         if ( null == self::$instance ) {
             self::$instance = new self;
         }
@@ -32,10 +33,10 @@ class messageController {
 
 	public function init(){
 
-		add_action('woocommerce_checkout_order_created', array($this,'wpts_new_order'), 10,1);
-        add_action( 'woocommerce_order_note_added', array($this,'wpts_order_note'), 10, 2 );
-        add_action( 'woocommerce_order_status_changed', array( $this,'wpts_on_order_update'), 10, 3 );
-		add_action( 'woocommerce_order_refunded', array( $this,'wpts_order_refunded'), 10, 2 ); 
+		add_action('woocommerce_checkout_order_created', array($this,'telinfy_wpts_new_order_queue'), 10,1);
+        add_action( 'woocommerce_order_note_added', array($this,'telinfy_wpts_order_note'), 10, 2 );
+        add_action( 'woocommerce_order_status_changed', array( $this,'telinfy_wpts_on_order_update'), 10, 3 );
+		add_action( 'woocommerce_order_refunded', array( $this,'telinfy_wpts_order_refunded'), 10, 2 ); 
 
 	}
 
@@ -46,7 +47,7 @@ class messageController {
      */
 
 
-	public function get_telinfy_header_image($order){
+	public function telinfy_get_telinfy_header_image($order){
 
 		$order_items = $order->get_items();
 		$number_of_items = count($order_items);
@@ -67,12 +68,28 @@ class messageController {
 		return $header_image_link;
 	}
 
+	public function telinfy_wpts_new_order_queue($order){
+
+		$this->query = telinfy_query_db::telinfy_get_instance();
+		$order_confirmation_status_whatsapp = get_option('wc_settings_telinfy_messaging_checkbox_order_confirmation_whatsapp');
+		$order_confirmation_status_sms = get_option('wc_settings_telinfy_messaging_checkbox_order_confirmation_sms');
+
+		if($order_confirmation_status_whatsapp  == "yes" || $order_confirmation_status_sms == "yes"){
+
+			$customer_phone = $order->get_billing_phone();
+			$order_id = $order->get_id();
+			$user_id = is_user_logged_in() ? get_current_user_id() : wc()->session->get( 'user_id' );
+			$user_id = $user_id ? $user_id : 0;
+			$this->query->telinfy_insert_message_queue($user_id,$customer_phone,$order_id);
+		}
+	}
+
 	/**
      * Send messages when creating an order
      *
      * @return void
      */
-	public function wpts_new_order($order){
+	public function telinfy_wpts_new_order($order){
 
 		
 		$order_confirmation_status_whatsapp = get_option('wc_settings_telinfy_messaging_checkbox_order_confirmation_whatsapp');
@@ -86,64 +103,90 @@ class messageController {
 
 		// Send WhatsApp messages when placing an order
 
-		if($order_confirmation_status_whatsapp =="yes"){
-			
-			$whatsapp_order_confirmation_template_name =get_option("wc_settings_telinfy_messaging_whatsapp_template_name_order_confirmation");
+		if ($order->get_status() === 'processing') {
 
-			if($whatsapp_order_confirmation_template_name){
+			$response = 0;
 
-				$header_image_link = $this->get_telinfy_header_image($order);
-				$body_params =  array(
-                        array(
-                            'type' => 'text',
-                            'text' => $customer_name
-                        ), array(
-                            'type' => 'text',
-                            'text' => '#'.$order_id
-                        ), array(
-                        	'type' => 'text',
-                            'text' => $currency_symbol." ".$order_total
-                        )
-                    );
-				$this->connector = TelinfyConnector::get_instance();
-	            $body = $this->connector->render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_confirmation_template_name,$header_image_link);          
-		    	$this->connector->send_message($body,$customer_phone);
-		    }
-		}
-
-		// Send sms messages when placing an order
-
-		if($order_confirmation_status_sms =="yes"){
-
-			$sms_order_confirmation_template_id = get_option("wc_settings_telinfy_messaging_sms_tid_order_confirmation");
-			$button_redirect_url =  get_permalink(wc_get_page_id('myaccount'));
-
-			if($sms_order_confirmation_template_id){
-				$formatted_order_id = "#".$order_id;
-				$currency_symbol = get_woocommerce_currency();
-				$formatted_order_total = $currency_symbol." ".$order_total;
-
-	           	// $message_content ="Dear {$customer_name} \nThank you for Shopping with us. We have received your order {$formatted_order_id} worth {$formatted_order_total}\nView Order: {$button_redirect_url}.\nGreenAds Global Pvt Ltd";
-
-
-				$replacements_order_confirmation = array(
-				    '{$customer_name}' => $customer_name, 
-				    '{$order_id}' => $formatted_order_id,
-				    '{$redirect_url}' => $button_redirect_url,
-				    '{$order_total}' => $formatted_order_total 
-				);
-
+			if($order_confirmation_status_whatsapp =="yes"){
 				
-	           	$message_template_order_confirmation = get_option("wc_settings_telinfy_messaging_sms_tdata_order_confirmation");
+				$whatsapp_order_confirmation_template_name =get_option("wc_settings_telinfy_messaging_whatsapp_template_name_order_confirmation");
 
-	           	$modified_message_order_confirmation = str_replace(array_keys($replacements_order_confirmation), $replacements_order_confirmation, $message_template_order_confirmation);
+				if($whatsapp_order_confirmation_template_name){
+
+					$header_image_link = $this->telinfy_get_telinfy_header_image($order);
+					$body_params =  array(
+	                        array(
+	                            'type' => 'text',
+	                            'text' => $customer_name
+	                        ), array(
+	                            'type' => 'text',
+	                            'text' => '#'.$order_id
+	                        ), array(
+	                        	'type' => 'text',
+	                            'text' => $currency_symbol." ".$order_total
+	                        )
+	                    );
+					$this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
+		            $body = $this->connector->telinfy_render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_confirmation_template_name,$header_image_link);          
+			    	$whats_result = $this->connector->telinfy_send_message($body,$customer_phone);
+
+			    	if($whats_result['status_code'] == 200){
+			    		$response = $response+1;
+			    	}
 
 
-	           	$this->sms_connector = SmsConnector::get_instance ();
-	           	$this->sms_connector->send_sms($modified_message_order_confirmation,$customer_phone,$sms_order_confirmation_template_id);
-	       }
-           
-        }
+			    }
+			}
+
+			// Send sms messages when placing an order
+
+			if($order_confirmation_status_sms =="yes"){
+
+				$sms_order_confirmation_template_id = get_option("wc_settings_telinfy_messaging_sms_tid_order_confirmation");
+				$button_redirect_url =  get_permalink(wc_get_page_id('myaccount'));
+
+				if($sms_order_confirmation_template_id){
+					$formatted_order_id = "#".$order_id;
+					$currency_symbol = get_woocommerce_currency();
+					$formatted_order_total = $currency_symbol." ".$order_total;
+
+		           	// $message_content ="Dear {$customer_name} \nThank you for Shopping with us. We have received your order {$formatted_order_id} worth {$formatted_order_total}\nView Order: {$button_redirect_url}.\nGreenAds Global Pvt Ltd";
+
+
+					$replacements_order_confirmation = array(
+					    '{$customer_name}' => $customer_name, 
+					    '{$order_id}' => $formatted_order_id,
+					    '{$redirect_url}' => $button_redirect_url,
+					    '{$order_total}' => $formatted_order_total 
+					);
+
+					
+		           	$message_template_order_confirmation = get_option("wc_settings_telinfy_messaging_sms_tdata_order_confirmation");
+
+		           	$modified_message_order_confirmation = str_replace(array_keys($replacements_order_confirmation), $replacements_order_confirmation, $message_template_order_confirmation);
+
+
+		           	$this->sms_connector = telinfy_sms_connector::telinfy_get_instance ();
+		           	$sms_result = $this->sms_connector->telinfy_send_sms($modified_message_order_confirmation,$customer_phone,$sms_order_confirmation_template_id);
+
+			    	if($sms_result['status_code'] == 200){
+			    		$response = $response+1;
+			    	}
+		       }
+	           
+	        }
+
+	        if($response > 0){
+	        	return 200;
+	        }else{
+	        	return 401;
+	        }
+	    }else if($order->get_status() === 'pending'){
+	    	return 201;
+	    }
+	    else{
+	    	return 401;
+	    }
 
 	}
 
@@ -152,7 +195,7 @@ class messageController {
      *
      * @return void
      */
-	public function wpts_order_note( $comment_id, $order ) {
+	public function telinfy_wpts_order_note( $comment_id, $order ) {
 
 
 		$comment_obj   = get_comment( $comment_id );
@@ -174,7 +217,7 @@ class messageController {
 			if($order_comment_status_whatsapp =="yes"){
 				$whatsapp_order_notes_template_name =get_option("wc_settings_telinfy_messaging_whatsapp_template_name_order_notes"); 
 				if($whatsapp_order_notes_template_name){
-					$header_image_link = $this->get_telinfy_header_image($order);
+					$header_image_link = $this->telinfy_get_telinfy_header_image($order);
 
 					$body_params =  array(
                         array(
@@ -188,9 +231,9 @@ class messageController {
                             'text' => $customer_note
                         )
                     );
-					$this->connector = TelinfyConnector::get_instance();
-		        	$body = $this->connector->render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_notes_template_name,$header_image_link);
-		        	$this->connector->send_message($body,$customer_phone);
+					$this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
+		        	$body = $this->connector->telinfy_render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_notes_template_name,$header_image_link);
+		        	$this->connector->telinfy_send_message($body,$customer_phone);
 		        }
 
 			}
@@ -217,8 +260,8 @@ class messageController {
 
 	           	$modified_message_order_note = str_replace(array_keys($replacements_order_note), $replacements_order_note, $message_template_order_note);
 
-		           	$this->sms_connector = SmsConnector::get_instance ();
-		          	$this->sms_connector->send_sms($modified_message_order_note,$customer_phone,$sms_order_notes_template_id);
+		           	$this->sms_connector = telinfy_sms_connector::telinfy_get_instance ();
+		          	$this->sms_connector->telinfy_send_sms($modified_message_order_note,$customer_phone,$sms_order_notes_template_id);
 		       }
                
             }
@@ -233,7 +276,7 @@ class messageController {
      * @return void
      */
 
-	public function wpts_on_order_update( $order_id, $old_status, $new_status ) {
+	public function telinfy_wpts_on_order_update( $order_id, $old_status, $new_status ) {
 
 	    // Get the value of the custom field from the updated order data
 	    $notify_customer = isset( $_POST['customer_notify_checkbox_field'] ) ? sanitize_text_field( $_POST['customer_notify_checkbox_field'] ) : '';
@@ -254,7 +297,7 @@ class messageController {
         $order_other_status_sms = get_option("wc_settings_telinfy_messaging_checkbox_other_order_status_sms");
 
 		$order = wc_get_order($order_id);
-		$header_image_link = $this->get_telinfy_header_image($order);
+		$header_image_link = $this->telinfy_get_telinfy_header_image($order);
 		$customer_name = $order->get_billing_first_name();
 		$customer_phone = $order->get_billing_phone();
 		$currency_symbol = get_woocommerce_currency();
@@ -281,9 +324,9 @@ class messageController {
 
         	$whatsapp_order_shipment_template_name =get_option("wc_settings_telinfy_messaging_whatsapp_template_name_order_shipment"); 
         	if($whatsapp_order_shipment_template_name){
-        		$this->connector = TelinfyConnector::get_instance();
-	        	$body = $this->connector->render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_shipment_template_name,$header_image_link);
-	        	$this->connector->send_message($body,$customer_phone);
+        		$this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
+	        	$body = $this->connector->telinfy_render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_shipment_template_name,$header_image_link);
+	        	$this->connector->telinfy_send_message($body,$customer_phone);
 	        }
         }
 
@@ -308,9 +351,9 @@ class messageController {
 
         	$whatsapp_order_cancellation_template_name =get_option("wc_settings_telinfy_messaging_whatsapp_template_name_order_cancellation"); 
         	if($whatsapp_order_cancellation_template_name){
-        		$this->connector = TelinfyConnector::get_instance();
-	        	$body = $this->connector->render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_cancellation_template_name,$header_image_link);
-	        	$this->connector->send_message($body,$customer_phone);
+        		$this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
+	        	$body = $this->connector->telinfy_render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_cancellation_template_name,$header_image_link);
+	        	$this->connector->telinfy_send_message($body,$customer_phone);
         	}
 
         }
@@ -336,9 +379,9 @@ class messageController {
         	$whatsapp_order_status_change_template_name =get_option("wc_settings_telinfy_messaging_whatsapp_template_name_other_order_status"); 
 
         	if($whatsapp_order_status_change_template_name){
-        		$this->connector = TelinfyConnector::get_instance();
-	        	$body = $this->connector->render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_status_change_template_name,$header_image_link);
-	        	$this->connector->send_message($body,$customer_phone);
+        		$this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
+	        	$body = $this->connector->telinfy_render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_status_change_template_name,$header_image_link);
+	        	$this->connector->telinfy_send_message($body,$customer_phone);
         	}
 
         }
@@ -368,8 +411,8 @@ class messageController {
 
 	           	$modified_message_order_ship = str_replace(array_keys($replacements_order_ship), $replacements_order_ship, $message_template_order_ship);
 
-	           	$this->sms_connector = SmsConnector::get_instance ();
-	           	$this->sms_connector->send_sms($modified_message_order_ship,$customer_phone,$sms_order_shipment_template_id);
+	           	$this->sms_connector = telinfy_sms_connector::telinfy_get_instance ();
+	           	$this->sms_connector->telinfy_send_sms($modified_message_order_ship,$customer_phone,$sms_order_shipment_template_id);
 	       }
 
         }
@@ -399,8 +442,8 @@ class messageController {
 
 	           	$modified_message_order_cancel = str_replace(array_keys($replacements_order_cancel), $replacements_order_cancel, $message_template_order_cancel);
 
-	           $this->sms_connector = SmsConnector::get_instance ();
-	           $this->sms_connector->send_sms($modified_message_order_cancel,$customer_phone,$sms_order_cancellation_template_id);
+	           $this->sms_connector = telinfy_sms_connector::telinfy_get_instance ();
+	           $this->sms_connector->telinfy_send_sms($modified_message_order_cancel,$customer_phone,$sms_order_cancellation_template_id);
 	       }
         }
 
@@ -428,8 +471,8 @@ class messageController {
 
 	           	$modified_message_order_status = str_replace(array_keys($replacements_order_status), $replacements_order_status, $message_template_order_status);
 
-	           $this->sms_connector = SmsConnector::get_instance ();
-	           $this->sms_connector->send_sms($modified_message_order_status,$customer_phone,$sms_order_status_change_template_id);
+	           $this->sms_connector = telinfy_sms_connector::telinfy_get_instance ();
+	           $this->sms_connector->telinfy_send_sms($modified_message_order_status,$customer_phone,$sms_order_status_change_template_id);
 	       }
         }
 
@@ -442,7 +485,7 @@ class messageController {
      * @return void
      */
 
-	public function wpts_order_refunded( $order_id, $refund_id ) 
+	public function telinfy_wpts_order_refunded( $order_id, $refund_id ) 
 	{ 
 
 		// configurations to check whether the other status change messaging is enabled or not
@@ -454,7 +497,7 @@ class messageController {
     	$refund = wc_get_order($refund_id);
     	$refund_amount = $refund->get_amount();
     	$currency_symbol = get_woocommerce_currency();
-		$header_image_link = $this->get_telinfy_header_image($order);
+		$header_image_link = $this->telinfy_get_telinfy_header_image($order);
 		$customer_name = $order->get_billing_first_name();
 		$customer_phone = $order->get_billing_phone();
 	
@@ -477,9 +520,9 @@ class messageController {
         	$whatsapp_order_refund_template_name =get_option("wc_settings_telinfy_messaging_whatsapp_template_name_order_refund"); 
 
         	if($whatsapp_order_refund_template_name){
-        		$this->connector = TelinfyConnector::get_instance();
-	        	$body = $this->connector->render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_refund_template_name,$header_image_link);
-	        	$this->connector->send_message($body,$customer_phone);
+        		$this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
+	        	$body = $this->connector->telinfy_render_whatsapp_body($body_params,$customer_phone,$whatsapp_order_refund_template_name,$header_image_link);
+	        	$this->connector->telinfy_send_message($body,$customer_phone);
         	}
 
         }
@@ -509,8 +552,8 @@ class messageController {
 
 	           	$modified_message_order_refund = str_replace(array_keys($replacements_order_refund), $replacements_order_refund, $message_template_order_refund);
 
-	           	$this->sms_connector = SmsConnector::get_instance ();
-	           	$this->sms_connector->send_sms($modified_message_order_refund,$customer_phone,$sms_order_refund_template_id);
+	           	$this->sms_connector = telinfy_sms_connector::telinfy_get_instance ();
+	           	$this->sms_connector->telinfy_send_sms($modified_message_order_refund,$customer_phone,$sms_order_refund_template_id);
 	       }
         }
 

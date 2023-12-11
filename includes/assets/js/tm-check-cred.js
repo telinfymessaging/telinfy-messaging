@@ -35,13 +35,16 @@
 	    	const msgBox = "#whatsapp-config-error";
 	    	TM_cred_check._disable_fields(targetFields,msgBox);
 	    }
-	    
+
+    	const smsTargetFields = $(".sms-config");
+    	const smsTargetFieldsR = $(".sms-readonly");
 	    if(sms_username && sms_password){
-	    	const targetFields = $(".sms-config");
-	    	targetFields.prop("disabled", false).attr("title", "");
+
+	    	smsTargetFields.prop("disabled", false).attr("title", "");
+	    	smsTargetFieldsR.prop("readonly", false).attr("title", "");
 	    }else{
-	    	const targetFields = $(".sms-config");
-	    	TM_cred_check._disable_fields(targetFields);
+	    	TM_cred_check._disable_fields(smsTargetFields);
+	    	TM_cred_check._readonly_fields(smsTargetFieldsR);
 	    }		    
 
 		},
@@ -49,13 +52,16 @@
 			const feild_id = event.target.id;
 			const targetFields ="";
 			if(feild_id == "wc_settings_telinfy_messaging_api_key_sms" || feild_id == "wc_settings_telinfy_messaging_api_secret_sms"){
-				const targetFields = $(".sms-config");
-					username = jQuery("#wc_settings_telinfy_messaging_api_key_sms").val();
-					password = jQuery("#wc_settings_telinfy_messaging_api_secret_sms").val();
+				const smsTargetFields = $(".sms-config");
+				const smsTargetFieldsR = $(".sms-readonly");
+				username = jQuery("#wc_settings_telinfy_messaging_api_key_sms").val();
+				password = jQuery("#wc_settings_telinfy_messaging_api_secret_sms").val();
 				if(username && password){
-					targetFields.prop("disabled", false).attr("title", "");
+					smsTargetFields.prop("disabled", false).attr("title", "");
+					smsTargetFieldsR.prop("readonly", false).attr("title", "");
 				}else{
-					TM_cred_check._disable_fields(targetFields);
+					TM_cred_check._disable_fields(smsTargetFields);
+					TM_cred_check._readonly_fields(smsTargetFieldsR);
 				}
 				
 			}
@@ -64,6 +70,7 @@
 		_handle_click(event) {
 
 			event.preventDefault();
+				const whatsapp_api = jQuery( '#wc_settings_telinfy_messaging_api_base_url_whatsapp' ).val();
 				const whatsapp_username = jQuery( '#wc_settings_telinfy_messaging_api_key_whatsapp' ).val();
 				const whatsapp_password = jQuery( '#wc_settings_telinfy_messaging_api_secret_whatsapp' ).val();
 
@@ -76,14 +83,14 @@
               case 'wc_settings_telinfy_messaging_whatsapp_cred_check':
               	const msgBox = $("#whatsapp-config-error");
               	const targetFields = $(".whatsapp-config");
-              	if ( whatsapp_username == "" || whatsapp_password =="") {
-              		TM_cred_check._disable_fields(targetFields,msgBox);
-					return;
-				}
+              	if ( whatsapp_username == "" || whatsapp_password =="" || whatsapp_api =="") {
+				              		TM_cred_check._disable_fields(targetFields,msgBox);
+									return;
+								}
                 // Perform action for WhatsApp credentials check
                 $(msgBox).css("color","black");
                 $(msgBox).text("Validating...");                
-                TM_cred_check._send_ajax_request(whatsapp_username,whatsapp_password,"whatsapp-config",1);
+                TM_cred_check._send_ajax_request(whatsapp_username,whatsapp_password,whatsapp_api,"whatsapp-config",1);
 
                 break;
 
@@ -93,12 +100,13 @@
             }
 
 		},
-		_send_ajax_request(username,password,type,click = 0){
+		_send_ajax_request(username,password,apiEndpoint,type,click = 0){
 
         const data = {
 					action: 'tm_check_cred',
 					username: username,
 	        password: password,
+	        apiEndpoint: apiEndpoint,
 	        type:type,
 					security: tm_cred_vars._nonce,
 					tm_post_id: tm_cred_vars._post_id,
@@ -135,6 +143,10 @@
         	targetFields.prop("disabled", true).attr("title", "Please fill username and password");
         	$(msgBox).css("color","red");
         	$(msgBox).text("Please check the credentials");
+        },
+        _readonly_fields(targetFields){
+        	
+        	targetFields.prop("readonly", true).attr("title", "Please fill username and password");
         },
         _render_templates(type,msgBox){
 
@@ -174,7 +186,7 @@
 							        // Check if this is the option you want to mark as selected
 
 							        if (value == selected[elementId]) {
-							        	console.log(elementId);
+							        	// console.log(elementId);
 							            option.prop('selected', true); // Mark the option as selected
 							        }
 

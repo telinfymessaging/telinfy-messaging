@@ -7,12 +7,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class plugin{
+class telinfy_plugin{
 
     public $cron;
     protected static $instance = null;
 
-    public static function get_instance() {
+    public static function telinfy_get_instance() {
         if ( null == self::$instance ) {
             self::$instance = new self;
         }
@@ -26,7 +26,7 @@ class plugin{
     * @return void
     */
 
-    public function activate (){
+    public function telinfy_activate (){
 
         global $wpdb;
         
@@ -67,6 +67,17 @@ class plugin{
                         `phone` varchar(50) collate utf8_unicode_ci,
                         PRIMARY KEY  (`abd_ph_id`),
                         UNIQUE KEY `unique_user_id` (`user_id`)
+                        ) $telinfy_collate AUTO_INCREMENT=1 ";
+        dbDelta( $query );
+        $user_queue_tb = $wpdb->prefix . "tm_order_message_queue";
+        $query       = "CREATE TABLE IF NOT EXISTS {$user_queue_tb} (
+                        `queue_id` int(11) NOT NULL auto_increment,
+                        `status` int(3) NOT NULL,
+                        `user_id` varchar(50) collate utf8_unicode_ci,
+                        `phone` varchar(50) collate utf8_unicode_ci,
+                        `order_id` varchar(50) collate utf8_unicode_ci,
+                        PRIMARY KEY  (`queue_id`),
+                        UNIQUE KEY `unique_order_id` (`order_id`)
                         ) $telinfy_collate AUTO_INCREMENT=1 ";
         dbDelta( $query );
 

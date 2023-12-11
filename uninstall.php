@@ -60,7 +60,10 @@ $remove_options_array = array(
     "wc_settings_telinfy_messaging_sms_tdata_order_refund",
     "wc_settings_telinfy_messaging_sms_tdata_order_notes",
     "wc_settings_telinfy_messaging_sms_tdata_order_shipment",
-    "wc_settings_telinfy_messaging_sms_tdata_other_order_status"
+    "wc_settings_telinfy_messaging_sms_tdata_other_order_status",
+    "wc_settings_telinfy_messaging_api_base_url_whatsapp",
+    "wc_settings_telinfy_messaging_message_queue_cron_time",
+    "wc_settings_telinfy_messaging_message_queue_cron_item"
 );
 
 foreach ($remove_options_array as $option_name) {
@@ -74,8 +77,9 @@ global $wpdb;
 
 $abd_cart_record_tb   = $wpdb->prefix . "tm_abandoned_cart_record";
 $abd_user_phone_tb   = $wpdb->prefix . "tm_user_phone";
+$user_queue_tb    = $wpdb->prefix . "tm_order_message_queue";
 
-$sql = "DROP TABLE IF EXISTS  {$abd_cart_record_tb}, {$abd_user_phone_tb}";
+$sql = "DROP TABLE IF EXISTS  {$abd_cart_record_tb}, {$abd_user_phone_tb}, {$user_queue_tb}";
 $wpdb->query( $sql );
 
 // delete cron event
@@ -84,6 +88,9 @@ wp_unschedule_event($timestamp, 'tm_execute_cron');
 
 $timestamp = wp_next_scheduled('tm_remove_abandoned_cart');
 wp_unschedule_event($timestamp, 'tm_remove_abandoned_cart');
+
+$timestamp = wp_next_scheduled('tm_send_queue');
+wp_unschedule_event($timestamp, 'tm_send_queue');
 
 // Output a message to indicate the uninstall process
 if (defined('WP_DEBUG') && WP_DEBUG) {
