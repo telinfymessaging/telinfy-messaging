@@ -7,16 +7,17 @@ if ( ! defined( 'ABSPATH' ) ) {
    exit;
 }
 
-require_once( WOOCOMMERCE_TELINFY_MESSAGING_PLUGIN_PATH . 'includes/queryDb.php' );
+require_once( TELINFY_WOOCOMMERCE_PLUGIN_PATH . 'includes/queryDb.php' );
 
 define( 'TN_CURRENT_TIME', current_time( 'U' ) );
 
-use TelinfyMessaging\Api\smsConnector;
-use TelinfyMessaging\Includes\QueryDb;
-use TelinfyMessaging\Api\TelinfyConnector;
+use TelinfyMessaging\Api\telinfy_sms_connector;
+use TelinfyMessaging\Includes\telinfy_query_db;
+use TelinfyMessaging\Api\telinfy_whatsapp_connector;
+use TelinfyMessaging\controllers\telinfy_message_controller;
 
 
-class cronController {
+class telinfy_cron_controller {
 
    protected static $instance = null;
    public $query;
@@ -31,14 +32,15 @@ class cronController {
 
    public function __construct(){
 
-      $this->query = QueryDb::get_instance();
+      $this->query = telinfy_query_db::telinfy_get_instance();
 
-      add_action( 'tm_cron_send_message_abd_cart', array( $this, 'send_abandoned_message' ) );
-      add_action( 'tm_cron_abd_cart_remove', array( $this, 'abandoned_cart_remove' ) );
+      add_action( 'telinfy_tm_cron_send_message_abd_cart', array( $this, 'telinfy_send_abandoned_message' ) );
+      add_action( 'telinfy_tm_cron_abd_cart_remove', array( $this, 'telinfy_abandoned_cart_remove' ) );
+      add_action( 'telinfy_tm_cron_send_message', array( $this, 'telinfy_send_queue_message' ) );
 
    }
 
-    public static function get_instance() {
+    public static function telinfy_get_instance() {
         if ( null == self::$instance ) {
             self::$instance = new self;
         }
@@ -52,33 +54,41 @@ class cronController {
      * @return void
      */
 
-   public function send_abandoned_message() {
+   public function telinfy_send_abandoned_message() {
 
       $abd_cart_send_time = get_option('wc_settings_telinfy_messaging_abd_cart_send_time');
       $hours_array = explode(",",$abd_cart_send_time);
+
+      $hours_array = array_filter($hours_array, 'is_numeric');
+      $hours_array = array_map('intval', $hours_array);
+      $hours_array = array_unique($hours_array);
+      $hours_array = array_values($hours_array);
+      
       $abd_cart_send_time_count = count($hours_array);
 
-      $abd_cart_time = get_option('wc_settings_telinfy_messaging_abd_cart_time');
+      $abd_cart_time = (int)get_option('wc_settings_telinfy_messaging_abd_cart_time');
       $previous_time = 0;
       $i = 0;
+      if($abd_cart_send_time != null && $abd_cart_time){
 
-      for ($j = $abd_cart_send_time_count - 1; $j >= 0; $j--) {
+         for ($j = $abd_cart_send_time_count - 1; $j >= 0; $j--) {
 
-         $abd_send_time = $abd_cart_time + $hours_array[$j];
-         $time_to_send  = current_time( 'timestamp' ) - intval($abd_send_time) * HOUR_IN_SECONDS;
+            $abd_send_time = $abd_cart_time + $hours_array[$j];
+            $time_to_send  = current_time( 'timestamp' ) - intval($abd_send_time) * HOUR_IN_SECONDS;
 
-         $lists = $this->query->get_list_message_to_send( $j+1, $time_to_send );
-         $last_one = 0;
-         if($abd_cart_send_time_count-1 == $j){
-            $last_one = 1;
-         }
-
-         if ( is_array( $lists ) && count( $lists ) > 0 ) {
-            foreach ( $lists as $id => $item ) {
-               $this->message_content( $item, $j+1,$last_one);
+            $lists = $this->query->telinfy_get_list_message_to_send( $j+1, $time_to_send );
+            $last_one = 0;
+            if($abd_cart_send_time_count-1 == $j){
+               $last_one = 1;
             }
+
+            if ( is_array( $lists ) && count( $lists ) > 0 ) {
+               foreach ( $lists as $id => $item ) {
+                  $this->telinfy_message_content( $item, $j+1,$last_one);
+               }
+            }
+                
          }
-             
       }
 
    }
@@ -89,7 +99,7 @@ class cronController {
      * @return void
      */
 
-   public function message_content($item,$count,$last_one){
+   public function telinfy_message_content($item,$count,$last_one){
       
       $abandoned_cart_whatsapp = get_option('wc_settings_telinfy_messaging_checkbox_abandoned_cart_whatsapp');
       $abandoned_cart_sms = get_option('wc_settings_telinfy_messaging_checkbox_abandoned_cart_sms');
@@ -107,7 +117,7 @@ class cronController {
          // send messages for abandoned cart via WhatsApp
          if($abandoned_cart_whatsapp == "yes" && $whatsapp_abandoned_cart_template_name){
 
-            $this->whatsapp_connector = TelinfyConnector::get_instance();
+            $this->whatsapp_connector = telinfy_whatsapp_connector::telinfy_get_instance();
             
             $body_params =  array(
                         array(
@@ -139,13 +149,13 @@ class cronController {
             }
             
 
-            $body = $this->whatsapp_connector->render_whatsapp_body($body_params,$customer_phone,$whatsapp_abandoned_cart_template_name,$header_image_link);
+            $body = $this->whatsapp_connector->telinfy_render_whatsapp_body($body_params,$customer_phone,$whatsapp_abandoned_cart_template_name,$header_image_link);
 
-            $result_whatsapp = $this->whatsapp_connector->send_message($body,$customer_phone);
+            $result_whatsapp = $this->whatsapp_connector->telinfy_send_message($body,$customer_phone);
 
             if(isset($result_whatsapp["status"]) && $result_whatsapp["status"] == "success"){
                $customer_notified = 1;
-               $this->query->update_sent_status($count,"whatsapp",$last_one,$abd_record_id);
+               $this->query->telinfy_update_sent_status($count,"whatsapp",$last_one,$abd_record_id);
             }
          }
 
@@ -170,11 +180,11 @@ class cronController {
 
                $modified_message_abd_cart = str_replace(array_keys($replacements_abd_cart), $replacements_abd_cart, $message_template_abd_cart);
 
-               $this->sms_connector = SmsConnector::get_instance ();
-               $result_sms = $this->sms_connector->send_sms($modified_message_abd_cart,$customer_phone,$sms_abandoned_template_id);
+               $this->sms_connector = telinfy_sms_connector::telinfy_get_instance ();
+               $result_sms = $this->sms_connector->telinfy_send_sms($modified_message_abd_cart,$customer_phone,$sms_abandoned_template_id);
                if(isset($result_sms["status"]) && $result_sms["status"] == "success"){
                   $customer_notified = 1;
-                  $this->query->update_sent_status($count,"sms",$last_one,$abd_record_id);
+                  $this->query->telinfy_update_sent_status($count,"sms",$last_one,$abd_record_id);
                }
             }
             
@@ -182,7 +192,7 @@ class cronController {
 
          if($customer_notified){
 
-            $this->query->update_notified($abd_record_id,$last_one,$count);
+            $this->query->telinfy_update_notified($abd_record_id,$last_one,$count);
 
          }
 
@@ -196,14 +206,48 @@ class cronController {
      * @return void
      */
 
-   public function abandoned_cart_remove(){
+   public function telinfy_abandoned_cart_remove(){
 
-      $abd_cart_remove_time = get_option('wc_settings_telinfy_messaging_abd_cart_remove_time');
+      $abd_cart_remove_time = (int)get_option('wc_settings_telinfy_messaging_abd_cart_remove_time');
 
-      $abd_cart_time_hour = get_option('wc_settings_telinfy_messaging_abd_cart_time');
+      $abd_cart_time_hour = (int)get_option('wc_settings_telinfy_messaging_abd_cart_time');
 
-      $this->query->remove_abd_cart_record_by_time($abd_cart_remove_time,$abd_cart_time_hour);
+      if($abd_cart_remove_time && $abd_cart_time_hour){
+
+         $this->query->telinfy_remove_abd_cart_record_by_time($abd_cart_remove_time,$abd_cart_time_hour);
+
+      }
    }
+   public function telinfy_send_queue_message(){
 
+      $limit = (int)get_option('wc_settings_telinfy_messaging_message_queue_cron_item');
+      $queue_data = $this->query->telinfy_get_message_queue($limit);
+      $this->message = telinfy_message_controller::telinfy_get_instance();
+      if ( is_array( $queue_data ) && count( $queue_data ) > 0 ) {
+         $queue_del_id = array();
+         $queue_status_id = array();
+         foreach ( $queue_data as $id => $item ) {
+            $order = wc_get_order($item->order_id);
+            $response = $this->message->telinfy_wpts_new_order($order);
+            if($response == 200){
+               $queue_del_id[] = $item->queue_id;
+            }else if($response != 201){
+               $queue_status_id[]=$item->queue_id;
+            }
+         }
+         if(!empty($queue_del_id)){
+            $queue_delete_data = $this->query->telinfy_get_message_disabled_queue($limit);
+            if ( is_array( $queue_delete_data ) && count( $queue_delete_data ) > 0 ) {
+               foreach ( $queue_delete_data as $del_id => $del_item ) {
+                  $queue_del_id[] = $del_item->queue_id;
+               }
+            }
+            $this->query->telinfy_remove_message_queue($queue_del_id);
+         }
+         if(!empty($queue_status_id)){
+            $this->query->telinfy_update_message_queue($queue_status_id);
+         }
+      }
+   }
 
 }

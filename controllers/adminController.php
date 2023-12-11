@@ -6,16 +6,16 @@ namespace TelinfyMessaging\Controllers;
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
-use TelinfyMessaging\Api\TelinfyConnector;
+use TelinfyMessaging\Api\telinfy_whatsapp_connector;
 
 require_once( ABSPATH . 'wp-admin/includes/file.php' );
 
-class adminController {
+class telinfy_admin_controller {
 
     protected static $instance = null;
     public $connector;
     
-    public static function get_instance() {
+    public static function telinfy_get_instance() {
         if ( null == self::$instance ) {
             self::$instance = new self;
         }
@@ -32,19 +32,21 @@ class adminController {
     public function init() {
 
         
-        add_filter('woocommerce_settings_tabs_array',array($this,'add_settings_tab'),50);
-        add_action('woocommerce_settings_tabs_settings_telinfy_messaging',  array($this,'settings_tab'),50);
-        add_action('woocommerce_update_options_settings_telinfy_messaging', array($this,'update_settings'),50);
-        add_action('woocommerce_admin_order_data_after_order_details', array($this,'add_custom_checkbox_to_order_admin'), 10, 1);
+        add_filter('woocommerce_settings_tabs_array',array($this,'telinfy_add_settings_tab'),50);
+        add_action('woocommerce_settings_tabs_settings_telinfy_messaging',  array($this,'telinfy_settings_tab'),50);
+        add_action('woocommerce_update_options_settings_telinfy_messaging', array($this,'telinfy_update_settings'),50);
+        add_action('woocommerce_admin_order_data_after_order_details', array($this,'telinfy_add_custom_checkbox_to_order_admin'), 10, 1);
         //Custom feild hooks
-        add_action('woocommerce_admin_field_file',array($this,'add_file_upload'),10,1);
-        add_action('woocommerce_admin_field_button',array($this,'add_cred_check_button'),10,1);
+        add_action('woocommerce_admin_field_file',array($this,'telinfy_add_file_upload'),10,1);
+        add_action('woocommerce_admin_field_button',array($this,'telinfy_add_cred_check_button'),10,1);
         // Ajax hooks
-        add_action('wp_ajax_tm_check_cred', array($this,'tm_check_cred'));
-        add_action('wp_ajax_nopriv_tm_check_cred', array($this,'tm_check_cred'));
+        add_action('wp_ajax_tm_check_cred', array($this,'telinfy_tm_check_cred'));
+        add_action('wp_ajax_nopriv_tm_check_cred', array($this,'telinfy_tm_check_cred'));
 
-        add_action('wp_ajax_tm_list_templates', array($this,'tm_list_templates'));
-        add_action('wp_ajax_nopriv_tm_list_templates', array($this,'tm_list_templates'));
+        add_action('wp_ajax_tm_list_templates', array($this,'telinfy_tm_list_templates'));
+        add_action('wp_ajax_nopriv_tm_list_templates', array($this,'telinfy_tm_list_templates'));
+
+        add_action('admin_head', array($this,'telinfy_custom_css'));
     }
     
     /**
@@ -52,7 +54,7 @@ class adminController {
      *
      * @return array
      */
-    public static function add_settings_tab( $settings_tabs ) {
+    public static function telinfy_add_settings_tab( $settings_tabs ) {
         $settings_tabs['settings_telinfy_messaging'] = __( 'Telinfy Messaging', 'woocommerce-settings-telinfy-integration' );
         return $settings_tabs;
     }
@@ -63,24 +65,26 @@ class adminController {
      * @return void
      */
 
-    public function tm_check_cred(){
+    public function telinfy_tm_check_cred(){
 
         check_ajax_referer( 'tm_check_cred', 'security' );
-        $post_data = $this->tm_sanitize_post_data();
+        $post_data = $this->telinfy_tm_sanitize_post_data();
 
         $username = $post_data['username'];
         $password = $post_data['password'];
+        $apiEndpoint = $post_data['apiEndpoint'];
         $type = $post_data['type'];
-        if($username&& $password){
+        if($username && $password && $apiEndpoint){
 
             if($type == "whatsapp-config"){
-                $this->connector = TelinfyConnector::get_instance();
-                $result = $this->connector->get_api_token($username,$password);
+                $this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
+                $result = $this->connector->telinfy_get_api_token($username,$password);
 
                 if(isset($result['status']) && $result['status'] == "success"){
 
                     update_option("wc_settings_telinfy_messaging_api_key_whatsapp",$username,true);
                     update_option("wc_settings_telinfy_messaging_api_secret_whatsapp",$password,true);
+                    update_option("wc_settings_telinfy_messaging_api_base_url_whatsapp",$apiEndpoint,true);
 
                     echo json_encode(array("status" =>"success"));
                 }else{
@@ -102,18 +106,17 @@ class adminController {
      * @return void
      */
 
-    public function tm_list_templates(){
+    public function telinfy_tm_list_templates(){
 
         check_ajax_referer( 'tm_check_cred', 'security' );
-        $post_data = $this->tm_sanitize_post_data();
+        $post_data = $this->telinfy_tm_sanitize_post_data();
 
         $type = $post_data['type'];
 
         if($type == "whatsapp-config"){
-            $this->connector = TelinfyConnector::get_instance();
+            $this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
             sleep(2);
-            $whatsapp_template_list = $this->connector->get_whatsapp_templates();
-
+            $whatsapp_template_list = $this->connector->telinfy_get_whatsapp_templates();
             if(is_array($whatsapp_template_list)){
                 array_unshift($whatsapp_template_list,"select a template");
             }
@@ -150,15 +153,15 @@ class adminController {
      *
      * @return void
      */
-    public function settings_tab() {
+    public function telinfy_settings_tab() {
 
-        $settings = self::get_settings();
+        $settings = self::telinfy_get_settings();
         woocommerce_admin_fields( $settings );
 
         // Add this line to display the file upload field
         wp_enqueue_script(
             'tm-cred-check',
-            plugins_url( 'includes/assets/js/tm-check-cred.js', WOOCOMMERCE_TELINFY_MESSAGING_INCLUDES_PATH ) ,
+            plugins_url( 'includes/assets/js/tm-check-cred.js', TELINFY_WOOCOMMERCE_INCLUDES_PATH ) ,
             array( 'jquery' ),
             TM_ABANDON_VER,
             true
@@ -181,7 +184,7 @@ class adminController {
      * @return void
      */
 
-    public function add_file_upload($value){
+    public function telinfy_add_file_upload($value){
 
         $default_img = get_option('wc_settings_telinfy_messaging_whatsapp_file_upload');
     ?>
@@ -191,7 +194,7 @@ class adminController {
             </th>
             <td class="forminp">
                 <?php if($default_img){ ?>
-                    <a href="<?=$default_img?>" class="whatsapp-config"><img src="<?=$default_img?>" alt="noimages" width="50px" height="50px" style="display:block" /></a>
+                    <a href="<?=htmlspecialchars($default_img)?>" class="whatsapp-config"><img src="<?=htmlspecialchars($default_img)?>" alt="noimages" width="50px" height="50px" style="display:block" /></a>
                 <?php }else{echo "<p style='display:block'>Image is not available</p>";}?>
                 <input type="file" class="whatsapp-config" name="wc_settings_telinfy_messaging_whatsapp_file_upload" id="wc_settings_telinfy_messaging_whatsapp_file_upload">
                 <p class="description"><?php esc_html_e( 'Upload your file here.', 'woocommerce-settings-telinfy-integration' ); ?></p>
@@ -206,7 +209,7 @@ class adminController {
      * @return void
      */
 
-    public function add_cred_check_button($value){
+    public function telinfy_add_cred_check_button($value){
 
         ?>
         <tr valign="top">
@@ -227,24 +230,33 @@ class adminController {
      *
      * @return void
      */
-    public function update_settings() {
+    public function telinfy_update_settings() {
 
-        $settings_data = self::get_settings();
+        $settings_data = self::telinfy_get_settings();
 
-        if (isset($_FILES['wc_settings_telinfy_messaging_whatsapp_file_upload'])) {
-            // Handle the file upload and save it if necessary
-            $uploaded_file = $_FILES['wc_settings_telinfy_messaging_whatsapp_file_upload'];
-            $upload_overrides = array('test_form' => false);
+        $uploaded_file = $_FILES['wc_settings_telinfy_messaging_whatsapp_file_upload'];
+        if ($uploaded_file["name"] !="") {
 
-            $movefile = wp_handle_upload($uploaded_file, $upload_overrides);
+            error_log(json_encode($uploaded_file));
+            $allowed_mime_types = array('image/jpeg', 'image/png', 'image/gif');
+            $file_type = wp_check_filetype($uploaded_file['name'], array('jpg|jpeg|jpe' => 'image/jpeg', 'gif' => 'image/gif', 'png' => 'image/png'));
+            error_log($file_type['type']);
+            if (in_array($file_type['type'], $allowed_mime_types)) {
 
-            if ($movefile && !isset($movefile['error'])) {
-                // File successfully uploaded, you can save the file URL or other information here
-                $file_url = $movefile['url'];
-                // Save $file_url or other relevant information to your settings
-                update_option('wc_settings_telinfy_messaging_whatsapp_file_upload', $file_url);
+                $upload_overrides = array('test_form' => false);
+                $movefile = wp_handle_upload($uploaded_file, $upload_overrides);
+            
+                if ($movefile && !isset($movefile['error'])) {
+                    $file_url = $movefile['url'];
+                    $file_url = esc_url($file_url);
+                    update_option('wc_settings_telinfy_messaging_whatsapp_file_upload', $file_url);
+                } else {
+                    $error_message = isset($movefile['error']) ? $movefile['error'] : 'Unknown error during file upload.';
+                    error_log($error_message);
+                }
             } else {
-                    // File upload failed, handle the error as per your requirement
+                $error_message = 'Invalid file type. Allowed types: ' . implode(', ', $allowed_mime_types);
+                error_log($error_message);
             }
         }
         woocommerce_update_options($settings_data);
@@ -257,10 +269,10 @@ class adminController {
      *
      * @return array
     */
-    public function get_settings() {
+    public function telinfy_get_settings() {
 
-        $this->connector = TelinfyConnector::get_instance();
-        $whatsapp_template_list = $this->connector->get_whatsapp_templates();
+        $this->connector = telinfy_whatsapp_connector::telinfy_get_instance();
+        $whatsapp_template_list = $this->connector->telinfy_get_whatsapp_templates();
         if(is_array($whatsapp_template_list)){
             array_unshift($whatsapp_template_list,"select a template");
         }else{
@@ -275,6 +287,12 @@ class adminController {
                 'type'     => 'title',
                 'desc'     => 'Please add configuration to enable WhatsApp messaging services. <a href="https://www.greenadsglobal.com/whatsapp-business-api-pricing/" target="_blank">Click here</a> for purchase plans',
                 'id'       => 'wc_settings_telinfy_messaging_section_title_whatsapp'
+            ),
+            'telinfy_api_base_url' => array(
+                'name'     => __( 'API Base URL', 'woocommerce-settings-telinfy-integration' ),
+                'type'     => 'text',
+                'desc'     => __( '' ),
+                'id'       => 'wc_settings_telinfy_messaging_api_base_url_whatsapp'
             ),
             'telinfy_api_key_whatsapp' => array(
                 'name'     => __( 'Username', 'woocommerce-settings-telinfy-integration' ),
@@ -474,105 +492,105 @@ class adminController {
                 'title'         => __( 'Sender name', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_sender_name',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'text'
             ),
             'telinfy_messaging_sms_tid_order_confirmation' => array(
                 'title'         => __( 'Template id for order confirmation', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tid_order_confirmation',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'text'
             ),
             'telinfy_messaging_sms_tdata_order_confirmation' => array(
                 'title'         => __( 'Template for order confirmation', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tdata_order_confirmation',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'textarea'
             ),
             'telinfy_messaging_sms_tid_order_cancellation' => array(
                 'title'         => __( 'Template id for cancellation', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tid_order_cancellation',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'text'
             ),
             'telinfy_messaging_sms_tdata_order_cancellation' => array(
                 'title'         => __( 'Template for cancellation', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tdata_order_cancellation',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'textarea'
             ),
             'telinfy_messaging_sms_tid_order_refund' => array(
                 'title'         => __( 'Template id for order refund', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tid_order_refund',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'text'
             ),
             'telinfy_messaging_sms_tdata_order_refund' => array(
                 'title'         => __( 'Template for order refund', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tdata_order_refund',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'textarea'
             ),
             'telinfy_messaging_sms_tid_order_notes' => array(
                 'title'         => __( 'Template id for order notes', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tid_order_notes',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'text'
             ),
             'telinfy_messaging_sms_tdata_order_notes' => array(
                 'title'         => __( 'Template for order notes', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tdata_order_notes',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'textarea'
             ),
             'telinfy_messaging_sms_tid_order_shipment' => array(
                 'title'         => __( 'Template id for order shipment', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tid_order_shipment',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'text'
             ),
             'telinfy_messaging_sms_tdata_order_shipment' => array(
                 'title'         => __( 'Template for order shipment', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tdata_order_shipment',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'textarea'
             ),
             'telinfy_messaging_sms_tid_other_order_status' => array(
                 'title'         => __( 'Template id for other order status', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tid_other_order_status',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'text'
             ),
             'telinfy_messaging_sms_tdata_other_order_status' => array(
                 'title'         => __( 'Template for other order status', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tdata_other_order_status',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'textarea'
             ),
             'telinfy_messaging_sms_tid_abandoned_cart' => array(
                 'title'         => __( 'Template id for abandoned cart', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tid_abandoned_cart',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'text'
             ),
             'telinfy_messaging_sms_tdata_abandoned_cart' => array(
                 'title'         => __( 'Template for abandoned cart', 'woocommerce-settings-telinfy-integration' ),
                 'desc'          => __( '' ),
                 'id'            => 'wc_settings_telinfy_messaging_sms_tdata_abandoned_cart',
-                'class'         => 'sms-config',
+                'class'         => 'sms-readonly',
                 'type'          => 'textarea'
             ),
             'telinfy_checkbox_order_confirmation_sms' => array(
@@ -697,6 +715,18 @@ class adminController {
                 'desc'      => __( 'Abandoned cart records will be automatically deleted after the above mentioned time. Please add time in <b>days</b>',),
                 'id'        => 'wc_settings_telinfy_messaging_abd_cart_remove_time'
             ),
+            'telinfy_message_queue_cron_time' => array(
+                'name'      => __( 'Message queue cron interval', 'woocommerce-settings-telinfy-integration' ),
+                'type'      => 'number',
+                'desc'      => __( 'A message queue will be added when an order is placed.This is the time interval to execute the queue. Please add time in <b>minutes</b>',),
+                'id'        => 'wc_settings_telinfy_messaging_message_queue_cron_time'
+            ),
+            'telinfy_message_queue_cron_item' => array(
+                'name'      => __( 'Message cron item count', 'woocommerce-settings-telinfy-integration' ),
+                'type'      => 'number',
+                'desc'      => __( 'Number of items processed in an execution of queue. Please add <b>item count</b>',),
+                'id'        => 'wc_settings_telinfy_messaging_message_queue_cron_item'
+            ),
              'telinfy_section_end_cron' => array(
                  'type'     => 'sectionend',
                  'id'       => 'wc_settings_telinfy_messaging_section_end_cron'
@@ -717,13 +747,13 @@ class adminController {
      * @return void
      */
 
-    public function add_custom_checkbox_to_order_admin( $order ) {
+    public function telinfy_add_custom_checkbox_to_order_admin( $order ) {
         // Get the value of the customer notify checkbox field for the order
         $customer_notify_checkbox_value = get_post_meta( $order->get_id(), 'customer_notify_checkbox_field', true );
 
         // Output the custom checkbox field HTML
         echo '<p class="form-field form-field-wide"><strong>' . __( 'Notify Customer') . '</strong> ';
-        echo '<input type="checkbox" name="customer_notify_checkbox_field" value="1" ' . checked( $customer_notify_checkbox_value, '1', false ) . ' style="width:unset"/>';
+        echo '<input type="checkbox" name="customer_notify_checkbox_field" value="1" ' . checked( esc_attr($customer_notify_checkbox_value), '1', false ) . ' style="width:unset"/>';
         echo 'Notify using Telinfy messaging services';
         echo '</p>';
     }
@@ -734,34 +764,56 @@ class adminController {
     * @return array
     */
 
-    public function tm_sanitize_post_data() {
+    public function telinfy_tm_sanitize_post_data() {
+        $input_post_values = [
+            'username' => [
+                'default' => '',
+                'sanitize' => 'sanitize_text_field', // Optional: You can remove this line if not needed.
+            ],
+            'password' => [
+                'default' => '',
+                'sanitize' => 'skip_sanitization', // Custom marker for skipping sanitization
+            ],
+            'type' => [
+                'default' => '',
+                'sanitize' => 'sanitize_text_field', // Optional: You can remove this line if not needed.
+            ],
+            'apiEndpoint' => [
+                'default' => '',
+                'sanitize' => 'sanitize_url', // Optional: You can remove this line if not needed.
+            ],
+        ];
 
-        $input_post_values = array(
-            'username'=> array(
-                'default'  => '',
-                'sanitize' => FILTER_SANITIZE_STRING,
-            ),
-            'password'=> array(
-                'default'  => '',
-                'sanitize' => FILTER_SANITIZE_STRING,
-            ),
-            'type'=> array(
-                'default'  => '',
-                'sanitize' => FILTER_SANITIZE_STRING,
-            ),
-        );
+        $sanitized_post = [];
 
-        $sanitized_post = array();
-        foreach ( $input_post_values as $key => $input_post_value ) {
-
-            if ( isset( $_POST[ $key ] ) ) { 
-                $sanitized_post[ $key ] = filter_input( INPUT_POST, $key, $input_post_value['sanitize'] );
+        foreach ($input_post_values as $key => $input_post_value) {
+            if (isset($_POST[$key])) {
+                if($input_post_value['sanitize'] === 'skip_sanitization'){
+                    $sanitized_post[$key] = $_POST[$key];
+                }else if($input_post_value['sanitize'] === 'sanitize_url'){
+                    $sanitized_post[$key] = sanitize_url($_POST[$key]);
+                }else{
+                    $sanitized_post[$key] = sanitize_text_field($_POST[$key]);
+                }
             } else {
-                $sanitized_post[ $key ] = $input_post_value['default'];
+                $sanitized_post[$key] = $input_post_value['default'];
             }
         }
-        return $sanitized_post;
 
+        return $sanitized_post;
+    }
+
+    public function telinfy_custom_css(){
+        echo "<style>
+        .sms-readonly[readonly] {
+            background: rgba(255,255,255,.5);
+            border-color: rgba(220,220,222,.75);
+            box-shadow: inset 0 1px 2px rgb(0 0 0 / 4%);
+            color: rgba(44,51,56,.5);
+            border-radius: 4px;
+            cursor: default;
+        }
+        </style>";
     }
 
 }

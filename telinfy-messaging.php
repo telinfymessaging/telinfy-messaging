@@ -8,8 +8,8 @@ Author URI: https://www.greenadsglobal.com/
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 5.0.0
-Tested up to: 6.2
-WC tested up to: 7.8
+Tested up to: 6.4
+WC tested up to: 8.3
 Requires PHP: 7.0
 */
 
@@ -22,8 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Load the main controller
 
-if ( ! defined( 'WOOCOMMERCE_TELINFY_MESSAGING_PLUGIN_PATH' ) ) {
-	define('WOOCOMMERCE_TELINFY_MESSAGING_PLUGIN_PATH', plugin_dir_path( __FILE__ ));
+if ( ! defined( 'TELINFY_WOOCOMMERCE_PLUGIN_PATH' ) ) {
+	define('TELINFY_WOOCOMMERCE_PLUGIN_PATH', plugin_dir_path( __FILE__ ));
 }
 
 if( ! defined( 'TM_CURRENT_TIME' )){
@@ -34,14 +34,14 @@ define('TM_ABANDON_VER','1.0.0');
 
 // Files.
 
-register_activation_hook( __FILE__,  'plugin_activation_callback');
+register_activation_hook( __FILE__,  'telinfy_plugin_activation_callback');
 
-function plugin_activation_callback(){
-	require_once WOOCOMMERCE_TELINFY_MESSAGING_PLUGIN_PATH . "includes/plugin.php";
-	$telinfy_plugin = \TelinfyMessaging\Includes\Plugin::get_instance();
+function telinfy_plugin_activation_callback(){
+	require_once TELINFY_WOOCOMMERCE_PLUGIN_PATH . "includes/plugin.php";
+	$telinfy_plugin = \TelinfyMessaging\Includes\telinfy_plugin::telinfy_get_instance();
 	$telinfy_plugin->activate();
 }
-require_once 'includes/telinfyLoader.php';
+require_once 'includes/telinfy_loader.php';
 
 
 

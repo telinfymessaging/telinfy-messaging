@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class queryDb {
+class telinfy_query_db {
 
 	public $cart_record_tb;
 	public $wpdb;
@@ -35,9 +35,11 @@ class queryDb {
 		$this->wpdb             = $wpdb;
 		$this->cart_record_tb   = $wpdb->prefix . "tm_abandoned_cart_record";
 		$this->user_phone_tb	= $wpdb->prefix . "tm_user_phone";
+		$this->user_queue_tb    = $wpdb->prefix . "tm_order_message_queue";
+
 	}
 
-	public static function get_instance() {
+	public static function telinfy_get_instance() {
         if ( null == self::$instance ) {
             self::$instance = new self;
         }
@@ -50,7 +52,7 @@ class queryDb {
 	*
 	*/
 
-	public static function set_session( $key, $value ) {
+	public static function telinfy_set_session( $key, $value ) {
 		WC()->session->set( $key, $value );
 	}
 
@@ -59,7 +61,7 @@ class queryDb {
 	*
 	*/
 
-	public static function get_session( $key ) {
+	public static function telinfy_get_session( $key ) {
 		return WC()->session ? WC()->session->get( $key ) : '';
 	}
 
@@ -68,7 +70,7 @@ class queryDb {
 	*
 	*/
 
-	public function update_abd_cart_record_data($data = array(), $where = array()){
+	public function telinfy_update_abd_cart_record_data($data = array(), $where = array()){
 
 		global $wpdb;
 
@@ -95,7 +97,7 @@ class queryDb {
 	*
 	*/
 
-	public function get_abdct_record( $abdc_id ) {
+	public function telinfy_get_abdct_record( $abdc_id ) {
 		global $wpdb;
 		$query = "SELECT * FROM {$this->cart_record_tb} WHERE abd_id = %s";
 
@@ -107,7 +109,7 @@ class queryDb {
 	*
 	*/
 
-	public function remove_abd_cart_record( $id) {
+	public function telinfy_remove_abd_cart_record( $id) {
 		global $wpdb;
 		$where = array( 'abd_id' => $id );
 
@@ -119,7 +121,7 @@ class queryDb {
 	*
 	*/
 
-	public function remove_abd_cart_record_by_user_id( $id ) {
+	public function telinfy_remove_abd_cart_record_by_user_id( $id ) {
 		global $wpdb;
 		$wpdb->delete( $this->cart_record_tb, array( 'user_id' => $id ), array( '%d', '%d' ) );
 	}
@@ -129,7 +131,7 @@ class queryDb {
 	*
 	*/
 
-	public function create_abd_cart_record( $data = array() ) {
+	public function telinfy_create_abd_cart_record( $data = array() ) {
 		global $wpdb;
 
 		$data_fm = $where_fm = array();
@@ -149,7 +151,7 @@ class queryDb {
 	*
 	*/
 
-	public function bulk_remove_abd_record( $ids ) {
+	public function telinfy_bulk_remove_abd_record( $ids ) {
 
 		global $wpdb;
 		$ids   = implode( ',', array_map( 'absint', $ids ) );
@@ -162,7 +164,7 @@ class queryDb {
 	*
 	*/
 
-	public function remove_phone_record( $user_id ) {
+	public function telinfy_remove_phone_record( $user_id ) {
 		global $wpdb;
 		$query = "delete from {$this->user_phone_tb} where user_id = %d ";
 		$sql = $wpdb->prepare($query,$user_id);
@@ -175,7 +177,7 @@ class queryDb {
 	*
 	*/
 
-	public function remove_abd_cart_record_by_time( $time,$abd_cart_time_hour ) {
+	public function telinfy_remove_abd_cart_record_by_time( $time,$abd_cart_time_hour ) {
 		global $wpdb;
 		$time_in_seconds  = $time * DAY_IN_SECONDS;
 		$abd_cart_time_hour_in_seconds = $abd_cart_time_hour * HOUR_IN_SECONDS;
@@ -190,7 +192,7 @@ class queryDb {
 	* Get abandoned cart records to notify customers
 	*
 	*/
-	public function get_list_message_to_send( $sent_count, $time ) {
+	public function telinfy_get_list_message_to_send( $sent_count, $time ) {
 
 		global $wpdb;
 		$sent_count = $sent_count;
@@ -206,7 +208,7 @@ class queryDb {
 
 	}
 
-	public function update_sent_status($count,$type,$last_one,$abd_record_id){
+	public function telinfy_update_sent_status($count,$type,$last_one,$abd_record_id){
 		global $wpdb;
 		$data = array($type."_sent" => $count);
 		if($last_one){
@@ -219,7 +221,7 @@ class queryDb {
 
 	}
 
-	public function update_notified($abd_record_id,$last_one,$abd_sent =""){
+	public function telinfy_update_notified($abd_record_id,$last_one,$abd_sent =""){
 		global $wpdb;
 		$data = array();
 		if($last_one){
@@ -240,7 +242,7 @@ class queryDb {
 	*
 	*/
 
-	public function insert_abd_phone_record($phone,$user_id){
+	public function telinfy_insert_abd_phone_record($phone,$user_id){
 
 		global $wpdb;
 
@@ -250,6 +252,59 @@ class queryDb {
         $res = $wpdb->query($sql);
 
 
+	}
+
+	public function telinfy_insert_message_queue($user_id,$customer_phone,$order_id){
+
+		global $wpdb;
+		$update_query = "INSERT IGNORE INTO {$this->user_queue_tb} (`user_id`,`status`,`phone`,`order_id`) VALUES (%d,%d,%d,%d)";
+		$status = 0;
+		$sql = $wpdb->prepare($update_query,$user_id,$status,$customer_phone,$order_id);
+        $res = $wpdb->query($sql);
+	}
+	public function telinfy_get_message_queue($limit){
+
+		global $wpdb;
+		$query = "SELECT * FROM {$this->user_queue_tb} WHERE status < 2 ORDER BY `queue_id` ASC LIMIT {$limit}";
+		return ( $wpdb->get_results( $query ) );
+	}
+	public function telinfy_get_message_disabled_queue($limit){
+
+		global $wpdb;
+		$query = "SELECT queue_id FROM {$this->user_queue_tb} WHERE status = 2 ORDER BY `queue_id` ASC LIMIT {$limit}";
+		return ( $wpdb->get_results( $query ) );
+	}
+	public function telinfy_remove_message_queue($queue_id){
+		global $wpdb;
+		// Create a comma-separated list of placeholders for the SQL query
+		$placeholders = implode(',', array_fill(0, count($queue_id), '%d'));
+
+		// Create a comma-separated list of IDs for the SQL query
+		$ids_string = implode(',', array_map('absint', $queue_id));
+
+		$queue_delete = "DELETE FROM {$this->user_queue_tb} WHERE queue_id IN ({$placeholders})";
+
+		// Use the prepare function to replace placeholders with actual values
+		$queue_sql = $wpdb->prepare($queue_delete, $queue_id);
+		// Execute the query
+		$res = $wpdb->query($queue_sql);
+
+	}
+
+	public function telinfy_update_message_queue($queue_id){
+		global $wpdb;
+		// Create a comma-separated list of placeholders for the SQL query
+		$placeholders = implode(',', array_fill(0, count($queue_id), '%d'));
+
+		// Create a comma-separated list of IDs for the SQL query
+		$ids_string = implode(',', array_map('absint', $queue_id));
+
+		$queue_update = "UPDATE {$this->user_queue_tb} SET status = status + 1 WHERE queue_id IN ({$placeholders})";
+
+		// Use the prepare function to replace placeholders with actual values
+		$queue_sql = $wpdb->prepare($queue_update, $queue_id);
+		// Execute the query
+		$res = $wpdb->query($queue_sql);
 	}
 
 }

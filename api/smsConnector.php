@@ -8,11 +8,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 
-class smsConnector{
+class telinfy_sms_connector{
 
 	protected static $instance = null;
 
-	public static function get_instance() {
+	public static function telinfy_get_instance() {
         if ( null == self::$instance ) {
             self::$instance = new self;
         }
@@ -26,7 +26,7 @@ class smsConnector{
      * @return void
      */
 
-	public function send_sms($message,$to,$template_id){
+	public function telinfy_send_sms($message,$to,$template_id){
 
 	    // sms send logic
 
@@ -47,7 +47,7 @@ class smsConnector{
 		);
 
 	    // Build the request URL
-	    $request_url = $api_url . "?username=$username&password=$password&mobile=$mobile&sendername=$sendername&message=$encoded_url&routetype=$routetype&tid=$template_id";    
+	    $request_url = $api_url . "?username=$username&password=$password&mobile=$mobile&sendername=$sendername&message=$encoded_url&routetype=$routetype&tid=$template_id";
 
 
 		$curl = curl_init();
@@ -80,6 +80,7 @@ class smsConnector{
 		if(isset($response_array["Status"]) && $response_array["Status"] == 1){
 			$result = array(
                 "status"=>"success",
+                "status_code"=>200,
                 "message"=>"message send Successfully",
                 "response"=>$response_array
             );
@@ -90,8 +91,6 @@ class smsConnector{
                 "response"=>$response_array
             );
 		}
-		wc_get_logger()->debug( print_r($request_url,true) , array( 'source' => 'SMS_LOG_REQUEST' ) );
-        wc_get_logger()->debug( print_r($result,true) , array( 'source' => 'SMS_LOG_RESPONSE' ) );
 		return $result;
 
 	}  

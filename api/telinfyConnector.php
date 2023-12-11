@@ -2,7 +2,7 @@
 
 namespace TelinfyMessaging\Api;
 
-use TelinfyMessaging\Includes\queryDb;
+use TelinfyMessaging\Includes\telinfy_query_db;
 
 // Forbid accessing directly
 if ( ! defined( 'ABSPATH' ) ) {
@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 
-class telinfyConnector{
+class telinfy_whatsapp_connector{
 
     private $client_id;
     private $client_secret;
@@ -28,7 +28,7 @@ class telinfyConnector{
         $this->client_secret = get_option( 'wc_settings_telinfy_messaging_api_secret_whatsapp' );
     }
 
-    public static function get_instance() {
+    public static function telinfy_get_instance() {
         if ( null == self::$instance ) {
             self::$instance = new self;
         }
@@ -41,7 +41,7 @@ class telinfyConnector{
     *
     * @return void
     */
-    protected function set_api_info($api_token ="")
+    protected function telinfy_set_api_info($api_token ="")
     {
         $api_access_token ="";
 
@@ -55,7 +55,7 @@ class telinfyConnector{
             $this->access_token = $api_access_token;
 
         }else{
-            $this->get_api_token();
+            $this->telinfy_get_api_token();
         }
     }
 
@@ -66,7 +66,7 @@ class telinfyConnector{
     *
     * @return array
     */
-    public function get_api_token($username="",$password="")
+    public function telinfy_get_api_token($username="",$password="")
     {
 
         $cred_check = 0;
@@ -103,11 +103,12 @@ class telinfyConnector{
                 'body' => $body
             )
         );
+
         $res = !is_wp_error($response) && isset($response['body']) ? $response['body'] : "";
         $response = json_decode($res, true);
         if (isset($response['data']['accessToken']) && $response['data']['accessToken'] != "") {
 
-            $this->set_api_info($response['data']['accessToken']);
+            $this->telinfy_set_api_info($response['data']['accessToken']);
             return array(
                 "status"=>"success",
                 "token"=>$response['data']['accessToken']
@@ -128,8 +129,8 @@ class telinfyConnector{
     * @return array
     */
 
-    public function render_whatsapp_body($body_params,$to,$templateName,$header_image_link){
-
+    public function telinfy_render_whatsapp_body($body_params,$to,$templateName,$header_image_link){
+        
         $language=get_option("wc_settings_telinfy_messaging_whatsapp_language"); 
         // $button_redirect_url =  get_permalink(wc_get_page_id('myaccount'));
 
@@ -190,11 +191,13 @@ class telinfyConnector{
     * @return void
     */
 
-    public function send_message($body,$to){
+    public function telinfy_send_message($body,$to){
 
         $method = "POST";
-        $endpoint = "https://api.telinfy.net/gaca/whatsapp/templates/message";
-        $response = $this->send_api_request($endpoint,$method,json_encode($body));
+        $api_base_url_whatsapp = get_option('wc_settings_telinfy_messaging_api_base_url_whatsapp');
+        $trimmed_api_base_url = rtrim($api_base_url_whatsapp, '/');
+        $endpoint = $trimmed_api_base_url."/whatsapp/templates/message";
+        $response = $this->telinfy_send_api_request($endpoint,$method,json_encode($body));
         return $response;
 
     }
@@ -205,11 +208,13 @@ class telinfyConnector{
     * @return string
     */
 
-    private function get_whatsapp_bussiness_id(){
+    private function telinfy_get_whatsapp_bussiness_id(){
 
-        $endpoint = "https://api.telinfy.net/gaca/whatsapp-business/accounts";
+        $api_base_url_whatsapp = get_option('wc_settings_telinfy_messaging_api_base_url_whatsapp');
+        $trimmed_api_base_url = rtrim($api_base_url_whatsapp, '/');
+        $endpoint = $trimmed_api_base_url ."/whatsapp-business/accounts";
         $method = "GET";
-        $get_whatsapp_bussiness_id_data = $this->send_api_request($endpoint,$method);
+        $get_whatsapp_bussiness_id_data = $this->telinfy_send_api_request($endpoint,$method);
         
         if(isset($get_whatsapp_bussiness_id_data["business_id"]) && $get_whatsapp_bussiness_id_data["business_id"]){
             return $get_whatsapp_bussiness_id_data["business_id"];
@@ -225,20 +230,24 @@ class telinfyConnector{
     * @return array
     */
 
-    public function get_whatsapp_templates(){
+    public function telinfy_get_whatsapp_templates(){
 
-        $business_id = $this->get_whatsapp_bussiness_id();
+        $business_id = $this->telinfy_get_whatsapp_bussiness_id();
 
         if(isset($business_id)){
 
-            $endpoint = "https://api.telinfy.net/gaca/whatsapp/templates?whatsAppBusinessId=$business_id";
+            $api_base_url_whatsapp = get_option('wc_settings_telinfy_messaging_api_base_url_whatsapp');
+            $trimmed_api_base_url = rtrim($api_base_url_whatsapp, '/');
+
+            $endpoint = $trimmed_api_base_url."/whatsapp/templates?whatsAppBusinessId=$business_id";
             $method = "GET";
-            $whatsapp_templates = $this->send_api_request($endpoint,$method);
+            $whatsapp_templates = $this->telinfy_send_api_request($endpoint,$method);
 
             if(isset($whatsapp_templates['data']['status']) && $whatsapp_templates['data']['status'] == "404"){
-                $new_business_id = $this->get_whatsapp_bussiness_id();
-                $endpoint = "https://api.telinfy.net/gaca/whatsapp/templates?whatsAppBusinessId=$new_business_id";
-                $whatsapp_templates = $this->send_api_request($endpoint,$method);
+                $new_business_id = $this->telinfy_get_whatsapp_bussiness_id();
+                
+                $endpoint = $trimmed_api_base_url."/whatsapp/templates?whatsAppBusinessId=$new_business_id";
+                $whatsapp_templates = $this->telinfy_send_api_request($endpoint,$method);
             }
 
             if(isset($whatsapp_templates["business_id"])){
@@ -267,10 +276,10 @@ class telinfyConnector{
     * @return void
     */
 
-    private function send_api_request($endpoint,$method,$body =""){
-
+    private function telinfy_send_api_request($endpoint,$method,$body =""){
+        
         if(!isset($endpoint) || (!isset($this->access_token))){
-            $response = $this->get_api_token();// creating new token
+            $response = $this->telinfy_get_api_token();// creating new token
             if(isset($response["status"]) && $response["status"] == "error"){
                 return $response;
             }
@@ -310,7 +319,6 @@ class telinfyConnector{
                 )
             );
         }
-
         if(is_wp_error($request)){
             return array("status"=>"error","message"=>"Telinfy API: Request failed");
         }
@@ -333,10 +341,10 @@ class telinfyConnector{
                 return false;
             }
 
-            $response = $this->get_api_token();// creating new token.
+            $response = $this->telinfy_get_api_token();// creating new token.
             if($response["status"] == "success"){
 
-               return $this->send_api_request($endpoint,$method,$body);
+               return $this->telinfy_send_api_request($endpoint,$method,$body);
 
             }
         }else if(wp_remote_retrieve_response_code( $request ) == 400 && $response["message"] == "Username or Password is incorrect"){
@@ -368,6 +376,7 @@ class telinfyConnector{
         }else if(isset($response["data"]["status"]) && $response["data"]["status"] == "ACCEPTED"){
             $response = array(
                 "status"=>"success",
+                "status_code" => 200,
                 "message"=>"message send Successfully",
                 "response"=>$response["data"]
             );
@@ -380,9 +389,6 @@ class telinfyConnector{
                 "data"=>$response
             );
         }
-
-        wc_get_logger()->debug( print_r($body,true) , array( 'source' => 'WHATSAPP_LOG_REQUEST' ) );
-        wc_get_logger()->debug( print_r($response,true) , array( 'source' => 'WHATSAPP_LOG_RESPONSE' ) );
 
         return $response;
 

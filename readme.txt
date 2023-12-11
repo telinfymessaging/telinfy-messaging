@@ -1,15 +1,21 @@
 === Telinfy Messaging ===
-Contributors: 
+Contributors: telinfymessaging
 Tags: Telinfy, Telinfy messaging, WhatsApp , Sms, Rcs, abandoned cart messages, Telinfy Sms Rcs WhatsApp Alert
 Requires at least: 5.0.0
-Tested up to: 6.2
-WC tested up to: 7.8
+Tested up to: 6.4
+WC tested up to: 8.3
 Requires PHP: 7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Stable tag: 1.0.0
 Author: GreenAds Global
 Author URI: https://www.greenadsglobal.com/
+This is a plugin WooCommerce plugin that helps you to integrate messaging services like WhatsApp, SMS, and RCS with Telinfy Messaging services 
+
+
+== Description ==
+
+What is WooCommerce Telinfy Messaging Plugin? The WooCommerce Telinfy Messaging Plugin is a WooCommerce plugin that helps you to integrate messaging services like WhatsApp, SMS, and RCS with Telinfy Messaging services. It will send messages to the customers on placing an order, shipping an order, cancelling an order, refunding an order, changing the status of the order, adding customer notes for the orders and abandoned cart notifications.
 
 This is a woocommerce plugin for the Telinfy Messaging services. Please click the below links to purchase the plans or contact us at info@greenadsglobal.com
 
@@ -17,9 +23,9 @@ WhatsApp: https://www.greenadsglobal.com/whatsapp-business-api-pricing/
 SMS: https://www.greenadsglobal.com/sms-pricing/
 RCS: https://www.greenadsglobal.com/rcs-messaging/
 
-== Description ==
+This plugin relies on a third-party cloud service to send WhatsApp messages and SMS messages to the customers. We are using the API services of the provider "https://www.greenadsglobal.com/" to send messages.
 
-What is WooCommerce Telinfy Messaging Plugin? The WooCommerce Telinfy Messaging Plugin is a WooCommerce plugin that helps you to integrate messaging services like WhatsApp, SMS, and RCS with Telinfy Messaging services. It will send messages to the customers on placing an order, shipping an order, cancelling an order, refunding an order, changing the status of the order, adding customer notes for the orders and abandoned cart notifications.
+Please find the privacy policy of the provider https://www.greenadsglobal.com/privacy-policy/?swcfpc=1
 
 ### IMPORTANT NOTICE:
 
@@ -68,6 +74,8 @@ In the first part, we have to enter **Username and Password**. We can validate t
 
 Feilds needs to be filled,
 
+	- API Base URL 
+
 	- Username
 
 	- Password
@@ -92,11 +100,133 @@ Feilds needs to be filled,
 
 -Template for abandoned cart
 
+
 Choose correct templates for the above feild from the select box
 
 -Language code : Language of the WhatsApp template. we can see it in the 
 
 -Default header image  : Default image for WhatsApp header
+
+
+####Template structure for each templates
+
+These are sample templates the content may vary but the parameters should be the same.
+
+-Template for order confirmation
+
+	Header: Image(will pass image URL)
+
+	Dear {{1}},
+	Thank you for Shopping with us. We have received your order {{2}} worth {{3}}
+	We request you to reconfirm the order
+	Please click the button to view the order details
+
+	{{1}} :- Name
+	{{2}} :- Order Id
+	{{3}} :- Order Amount
+
+	Call to action Button
+	View Order: http://<base_url>/{{1}}
+
+	{{1}}:- page id
+
+-Template for order cancellation
+
+	Header: Image(will pass image URL)
+
+	Your order is cancelled
+	Dear {{1}},
+	Your order {{2}} worth {{3}} is now cancelled.
+	Let us know in case any support is required
+
+	{{1}} :- Name
+	{{2}} :- Order Id
+	{{3}} :- Order Amount
+
+	Call to action Button
+	View Order: http://<base_url>/{{1}}
+
+	{{1}}:- page id
+
+-Template for order refund
+
+	Header: Image(will pass image URL)
+
+	Hi {{1}} ,
+	We've processed a refund of {{2}} for the order {{3}}, and you should expect to see the amount appear in your bank account in the next couple of business days.
+
+	{{1}} :- Name
+	{{2}} :- Order Amount
+	{{3}} :- Order Id
+
+	Call to action Button
+	View Order: http://<base_url>/{{1}}
+
+	{{1}}:- page id
+
+-Template for order notes
+
+	Header: Image(will pass image URL)
+
+	Hi {{1}},
+	An order note has been added for order {{2}}
+	Order Note: {{3}}
+
+	{{1}} :- Name
+	{{2}} :- Order Id
+	{{3}} :- Order Note
+
+	Call to action Button
+	View Order: http://<base_url>/{{1}}
+
+	{{1}}:- page id
+
+-Template for order shipment
+
+	Header: Image(will pass image URL)
+
+	Hi {{1}},
+	The order {{2}} worth {{3}} has been shipped
+
+	{{1}} :- Name
+	{{2}} :- Order Id
+	{{3}} :- Order Amount
+
+	Call to action Button
+	View Order: http://<base_url>/{{1}}
+
+	{{1}}:- page id
+
+-Template for other order status
+
+	Header: Image(will pass image URL)
+
+	Dear {{1}}, The status of the order {{2}} changed to {{3}}
+	Happy Shopping
+
+	{{1}} :- Name
+	{{2}} :- Order Id
+	{{3}} :- Order Status
+
+	Call to action Button
+	View Order: http://<base_url>/{{1}}
+
+	{{1}}:- page id
+
+-Template for abandoned cart
+
+	Header: Image(will pass image URL)
+
+	Hi {{1}},
+	We see you were trying to make a purchase but did not complete your payment. You can continue to click the below button.
+
+	{{1}}:- Name
+
+	Call to action Button
+	View Order: http://<base_url>/{{1}}
+
+	{{1}}:- page id
+
 
 
 In the third part, we have checkboxes for all the events. Here we can enable or disable each event for the WhatsApp messaging service
@@ -286,6 +416,10 @@ Eg: 2,4,6, This configuration will notification messages to the customer 3 times
 -**Abandoned cart remove cron interval** : The frequency of the cron to remove the abandoned cart records
 
 -**Delete abandoned records** : The time to delete the abandoned cart record after it is marked as abandoned
+
+-**Message queue cron interval** : A message queue will be added when an order is placed. This is the time interval to execute the queue. Please add time in minutes
+
+-**Message cron item count** : Number of items processed in an execution of queue. Please add the item count
 
 == Upgrade Notice == 
 
